@@ -1,41 +1,22 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from io import BytesIO
 import seaborn as sns
-import requests
-from datetime import datetime
+from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-import base64
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.lib import colors
 import plotly.express as px
+from datetime import datetime
 
-# --------------------------
-# Tabs
-# --------------------------
-with tabs[0]:
-    st.title("Welcome to the NGS Reimbursement and Lab Optimization App")
-    st.markdown("""
-    This tool supports labs and stakeholders in evaluating:
-    - 📊 Financial viability of NGS reimbursement strategies
-    - ⚙️ Operational efficiency using streamlined workflows
-    - 📁 Required documentation for CPT code and payer alignment
-
-    Use the tabs above to navigate each section.
-    """)
-tabs = st.tabs(["🏠 Home", "Reimbursement Analysis", "Lab Workflow Optimization", "Documentation Checklist"])
-
-with tabs[0]:
-    # --------------------------
-# Sidebar Inputs
-# --------------------------
+# === SIDEBAR ===
 st.sidebar.markdown("### Optional Inputs")
 zip_code = st.sidebar.text_input("Enter ZIP Code (for regional denial context):")
 test_strategy = st.sidebar.radio("Test Strategy:", ["Panel Only", "Carve-out from WES", "Carve-out from WGS", "Carve-out from Large Panel"])
 
-# --------------------------
-# Step 1: Select Test Type
-# --------------------------
+# === STEP 1-3: TEST SETUP ===
 st.markdown("## Step 1: Select Test Type")
 test_type = st.selectbox("Choose a test type:", [
     "Solid Tumor – DNA", "Solid Tumor – RNA", "Solid Tumor – DNA + RNA",
@@ -43,15 +24,9 @@ test_type = st.selectbox("Choose a test type:", [
     "Liquid Biopsy", "Germline", "WES (Whole Exome)", "WGS (Whole Genome)"
 ])
 
-# --------------------------
-# Step 2: Select Panel Source
-# --------------------------
 st.markdown("## Step 2: Select Panel Source")
 panel_source = st.radio("Select source:", ["SOPHiA Genetics", "General Category"])
 
-# --------------------------
-# Step 3: Select Specific Panel
-# --------------------------
 st.markdown("## Step 3: Select Specific Panel")
 sophia_panels = {
     "Solid Tumor – DNA Panel (325 genes)": 325,
@@ -88,9 +63,7 @@ else:
 
 selected_panels = st.multiselect("Available Panels:", available_panels)
 
-# --------------------------
-# Step 4: Risk Filter
-# --------------------------
+# === STEP 4: RISK FILTER ===
 st.markdown("## Step 4: Risk Filter")
 risk_notes = {
     "General – Germline Panel (50-100 genes)": {
@@ -126,9 +99,7 @@ risk_notes = {
 filter_risk = st.multiselect("Filter panels by risk level:", options=["Low", "Medium", "High", "Very High"])
 filtered_panels = [p for p in available_panels if not filter_risk or risk_notes.get(p, {}).get("risk_level") in filter_risk]
 
-# --------------------------
-# Step 5-7: Display Analysis and ROI
-# --------------------------
+# === STEP 5-9: PANEL ANALYSIS ===
 report_records = []
 for selected_panel in selected_panels:
     if selected_panel not in filtered_panels:
@@ -188,17 +159,12 @@ for selected_panel in selected_panels:
 
         st.markdown(f"➡️ To break even, you need **{break_even_panels:.1f}** panel reports per sample.")
 
-# --------------------------
-# Step 8: Regional Denial Rates
-# --------------------------
+# === STEP 10: STATE MAP ===
 st.markdown("## Step 8: Regional Denial Rates")
-st.markdown("Use the interactive map below to educate labs on payer-specific NGS denial risks by region.")
-
-state_data = {
+df_states = pd.DataFrame({
     "State": ["California", "Texas", "Florida", "New York", "Illinois", "Georgia", "Pennsylvania", "Ohio", "North Carolina", "Michigan"],
     "Denial Rate (%)": [12, 18, 15, 10, 17, 14, 13, 16, 11, 19]
-}
-df_states = pd.DataFrame(state_data)
+})
 
 fig = px.choropleth(
     df_states,
@@ -211,9 +177,7 @@ fig = px.choropleth(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# --------------------------
-# Step 9: Export Summary Report
-# --------------------------
+# === EXPORT ===
 summary_data = pd.DataFrame(report_records)
 summary_data.insert(0, "ZIP Code", zip_code)
 summary_data.insert(1, "Test Strategy", test_strategy)
@@ -234,95 +198,7 @@ for col in summary_data.columns:
     y -= 25
 c.save()
 pdf = pdf_buffer.getvalue()
+pdf_buffer.close()
 st.download_button("⬇️ Download PDF Report", data=pdf, file_name="ngs_full_report.pdf", mime="application/pdf")
 
 st.success("✅ App restored with enhanced analysis, ROI simulation, denial map, and export capabilities.")
-
-with tabs[3]:
-    st.markdown("# Documentation Checklist")
-    st.markdown("This section provides guidance to ensure all required documentation is prepared for successful reimbursement.")
-
-    checklist = [
-        "✅ Test order form with clear medical indication",
-        "✅ Pathology report or clinical summary",
-        "✅ Physician's letter of medical necessity",
-        "✅ Z-code (MolDX) registration",
-        "✅ CPT code alignment based on panel size and type",
-        "✅ Proof of genetic counseling (for some germline panels)",
-        "✅ Previous negative/inconclusive results (if reflexed)"
-    ]
-    for item in checklist:
-        st.markdown(f"- {item}")
-
-    st.markdown("### CPT Code Notes")
-    st.markdown("""
-    - **81450**: Targeted DNA/RNA analysis for solid tumors (<50 genes)
-    - **81455**: Large NGS panel (>50 genes), most commonly used for CGPs
-    - **81445**: Hereditary cancer panels (5–50 genes)
-    - **81479**: Unlisted molecular pathology procedure (use with caution)
-    """)
-
-with tabs[2]:
-    st.markdown("# Lab Workflow Optimization")
-    st.markdown("### Comparing Current Dual Workflow vs. SOPHiA CGP v2")
-
-    st.markdown("**Current Lab Workflow:**")
-    st.markdown("- Running **Archer FusionPlex Sarcoma** for RNA (FDA-approved)")
-    st.markdown("- Running **Separate DNA assay** for solid tumors")
-    st.markdown("- Two workflows: higher tech time, increased reagents, separate validation and QA")
-
-    st.markdown("**SOPHiA CGP v2 Workflow:**")
-    st.markdown("- Single unified DNA+RNA assay")
-    st.markdown("- Same-day prep, fewer consumables, and lower overall tech burden")
-    st.markdown("- Streamlined QA and validation")
-
-    st.markdown("### Input Cost Comparison")
-    archer_rna_cost = st.number_input("Cost of Archer RNA Assay per Sample ($)", min_value=0, value=650)
-    separate_dna_cost = st.number_input("Cost of Separate DNA Assay per Sample ($)", min_value=0, value=550)
-    sophiacgp_cost = st.number_input("Cost of SOPHiA CGP v2 per Sample ($)", min_value=0, value=950)
-
-    archer_total = archer_rna_cost + separate_dna_cost
-    savings = archer_total - sophiacgp_cost
-
-    st.markdown(f"**Current Dual Assay Cost:** ${archer_total:.2f}")
-    st.markdown(f"**SOPHiA CGP v2 Cost:** ${sophiacgp_cost:.2f}")
-
-    if savings > 0:
-        st.success(f"✅ SOPHiA CGP v2 reduces per-sample cost by ${savings:.2f}")
-    else:
-        st.warning(f"⚠️ SOPHiA CGP v2 is currently more expensive by ${-savings:.2f}")
-
-    st.markdown("### Operational Efficiency")
-    st.markdown("- **Tech Time per Workflow:** 2 workflows = double setup, cleanup, and QC time")
-    st.markdown("- **SOPHiA CGP v2** enables consolidated run and reduces turnaround time")
-    st.markdown("**Time Savings Estimate**")
-    tech_time_dual = st.slider("Total Tech Time for Dual Workflows (hours/sample)", 1, 10, 4)
-    tech_time_sophia = st.slider("Total Tech Time for SOPHiA CGP v2 (hours/sample)", 1, 10, 2)
-    hours_saved = tech_time_dual - tech_time_sophia
-
-    st.markdown(f"🕒 Estimated **Tech Time Saved per Sample:** {hours_saved} hours")
-
-    # Visual comparison chart
-    df_compare = pd.DataFrame({
-        "Workflow": ["Current (Archer + DNA)", "SOPHiA CGP v2"],
-        "Cost ($)": [archer_total, sophiacgp_cost],
-        "Tech Time (hrs)": [tech_time_dual, tech_time_sophia]
-    })
-
-    st.markdown("### Visual Comparison")
-    fig, ax = plt.subplots(figsize=(6, 4))
-    df_compare.set_index("Workflow")["Cost ($)"].plot(kind="bar", ax=ax, color=["#d62728", "#2ca02c"])
-    ax.set_ylabel("Cost ($)")
-    ax.set_title("Cost Comparison per Sample")
-    st.pyplot(fig)
-
-    fig2, ax2 = plt.subplots(figsize=(6, 4))
-    df_compare.set_index("Workflow")["Tech Time (hrs)"].plot(kind="bar", ax=ax2, color=["#1f77b4", "#ff7f0e"])
-    ax2.set_ylabel("Tech Time (hrs)")
-    ax2.set_title("Tech Time Comparison per Sample")
-    st.pyplot(fig2)
-
-    st.markdown("### Final Considerations")
-    st.markdown("- FDA approval ensures reimbursement **but** comes at a **higher total operational cost**.")
-    st.markdown("- Consolidating into one streamlined SOPHiA workflow reduces tech time, validation, training, and QC complexity.")
-    st.markdown("- More cost-effective at scale and reduces bottlenecks in lab operations.")
