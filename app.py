@@ -11,13 +11,10 @@ from reportlab.lib import colors
 import plotly.express as px
 from datetime import datetime
 
-# === PAGE SETUP ===
-st.set_page_config(page_title="NGS Reimbursement & Lab Optimization", layout="wide")
+# === TABS SETUP ===
+tabs = st.tabs(["Reimbursement Calculator", "Lab Optimization", "Education Center"])
 
-# === MAIN NAVIGATION ===
-tabs = st.tabs(["Reimbursement Guidance", "Lab Optimization"])
-
-# === TAB 1: REIMBURSEMENT GUIDANCE ===
+# === TAB 1: REIMBURSEMENT CALCULATOR ===
 with tabs[0]:
     st.sidebar.markdown("### Optional Inputs")
     zip_code = st.sidebar.text_input("Enter ZIP Code (for regional denial context):")
@@ -207,4 +204,23 @@ with tabs[0]:
 
 # === TAB 2: LAB OPTIMIZATION ===
 with tabs[1]:
-    st.markdown("## Lab Optimization Module Coming Soon")
+    st.header("Lab Optimization Simulation")
+    st.markdown("This section will help compare workflows and evaluate batching efficiency using SOPHiA's universal prep across sample types and instruments. Coming next:")
+    st.markdown("- Compare DNA vs RNA workflows for solid tumor and heme")
+    st.markdown("- Simulate batching efficiency (NextSeq Mid/High Output vs Aviti)")
+    st.markdown("- Model cost/time savings of consolidated workflow")
+
+# === TAB 3: EDUCATION CENTER ===
+with tabs[2]:
+    st.header("Reimbursement Education Center")
+    st.markdown("Use this section to better understand billing, coding, and appeal strategies.")
+
+    st.subheader("CPT/Z-code Education")
+    st.markdown("- 81445: Tumor Panel (5-50 genes)\n- 81450: Germline Panel (<50 genes)\n- 81455: Large Panels (>50 genes)\n- Z-Codes: Required for MolDX regions. Register via DEX.")
+
+    st.subheader("Appeal Checklist")
+    st.markdown("- Clinical utility documentation\n- Prior auth request letter\n- CPT justification\n- Supporting literature")
+
+    st.subheader("Download Templates")
+    st.download_button("Download Z-Code Checklist", data="Z-code checklist content", file_name="zcode_checklist.txt")
+    st.download_button("Download CPT Justification Template", data="Justification content", file_name="cpt_justification.txt")
